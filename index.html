@@ -136,6 +136,7 @@ kbd{font-family:var(--mono);font-size:9px;background:#fff;border:1px solid var(-
       <input type="file" id="file" accept="image/*" hidden>
       <div class="rr"><span>확대</span><input type="range" id="zoom" min="1" max="5" step="0.01" value="1"><span class="val" id="zoomV">100%</span></div>
       <div class="rr"><span>어둡기</span><input type="range" id="dim" min="0" max="100" step="1" value="55"><span class="val" id="dimV">55%</span></div>
+      <div class="rr"><span>색상 오버레이</span><input type="range" id="tint" min="0" max="100" step="1" value="35"><span class="val" id="tintV">35%</span></div>
       <div class="mini">
         <button class="btn s" id="fit" type="button">위치 초기화</button>
         <button class="btn s" id="clr" type="button">이미지 제거</button>
@@ -201,7 +202,7 @@ const ORGS=[
 const PH={x:0,y:0,w:W,h:H};
 
 const S={
-  rank:2, org:0, accent:'#0284c7', custom:false, dim:55,
+  rank:2, org:0, accent:'#0284c7', custom:false, dim:55, tint:35,
   tagLabel:'', name:'CODENAME',
   quote:'여기에 한 줄 대사를 입력하세요',
   img:null, zoom:1, px:0, py:0
@@ -261,10 +262,12 @@ function drawBanner(c){
     T(c,'NO IMAGE',W-44,58,{size:14,weight:700,color:'rgba(255,255,255,.26)',sp:4.5,align:'right',font:MONO});
   }
   /* 듀오톤 그레이딩 */
-  if(ok){
+  if(ok&&S.tint>0){
+    c.save();
+    c.globalAlpha=S.tint/100;
     c.globalCompositeOperation='multiply';
     c.fillStyle=mix(A,[255,255,255],.46);c.fillRect(PH.x,PH.y,PH.w,PH.h);
-    c.globalCompositeOperation='source-over';
+    c.restore();
   }
   /* 좌측 · 하단 · 상단 암부 */
   const dim=S.dim/100;
@@ -479,8 +482,9 @@ FIELDS.forEach(id=>{
 function qCount(){$('qCnt').textContent=($('quote').value||'').length+' / 70';}
 $('zoom').oninput=e=>setZoom(+e.target.value,null);
 $('dim').oninput=e=>{S.dim=+e.target.value;$('dimV').textContent=e.target.value+'%';fill(e.target);draw();};
+$('tint').oninput=e=>{S.tint=+e.target.value;$('tintV').textContent=e.target.value+'%';fill(e.target);draw();};
 function fill(el){el.style.setProperty('--fill',(el.value-el.min)/(el.max-el.min)*100+'%');}
-fill($('zoom'));fill($('dim'));
+fill($('zoom'));fill($('dim'));fill($('tint'));
 
 /* ══════════ 저장 ══════════ */
 const safe=s=>((s||'BANNER').replace(/[^\w가-힣.-]+/g,'_').replace(/^_+|_+$/g,'')||'BANNER');
