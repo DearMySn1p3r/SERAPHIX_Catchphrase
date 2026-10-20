@@ -358,11 +358,11 @@ textarea:focus{outline:none;border-color:var(--ac);background:#fff;box-shadow:0 
         <button class="btn" id="saveG" type="button">GIF 저장 <em id="emG">ANIMATED</em></button></div>
       <div class="opt">
         <div class="opt-r"><span class="chk" style="cursor:default">GIF 크기</span>
-          <select id="gsize" aria-label="GIF 크기"><option value="560">560 × 360</option><option value="700" selected>700 × 450</option><option value="1050">1050 × 675</option></select></div>
+          <select id="gsize" aria-label="GIF 크기"><option value="700">700 × 450</option><option value="1050" selected>1050 × 675</option><option value="1400">1400 × 900 · 원본</option></select></div>
         <div class="opt-r"><span class="chk" style="cursor:default">프레임</span>
-          <select id="gfps" aria-label="GIF 프레임"><option value="12">12 fps · 가벼움</option><option value="18" selected>18 fps</option><option value="24">24 fps · 부드러움</option></select></div>
+          <select id="gfps" aria-label="GIF 프레임"><option value="20">20 fps · 가벼움</option><option value="25" selected>25 fps</option><option value="30">30 fps · 부드러움</option></select></div>
         <div class="prog-g" id="gprog" hidden><div class="pg-bar"><b id="gbar"></b></div><span id="gtxt">0%</span></div>
-        <div class="spec"><span>5.6초 · 반복 재생</span><span id="gspec"></span></div>
+        <div class="spec"><span>4.6초 · 반복 재생</span><span id="gspec"></span></div>
       </div>
       <div class="opt">
         <div class="opt-r"><span class="chk" style="cursor:default">배율</span>
@@ -439,19 +439,27 @@ function centerP(){if(!S.img)return;const d=dsize();S.px=(PH.w-d.w)/2;S.py=(PH.h
 
 /* ══════════ 배너 ══════════ */
 /* 애니메이션 타임라인 (초) — t가 없으면 최종 정지 화면 */
-const ANIM={dur:5.6};
+const ANIM={dur:4.6};
 const clamp01=v=>v<0?0:v>1?1:v;
-const ease=v=>1-Math.pow(1-v,3);
+const ease=v=>v>=1?1:1-Math.pow(2,-10*v);            /* expo-out: 빠르게 튀어나와 딱 멈춤 */
+const GLY='ABCDEFGHJKLMNPQRSTUVWXYZ0123456789#%&/<>=+';
+function scr(txt,pr){ /* 해독(scramble) 효과 */
+  if(pr>=1)return txt;const ch=[...txt],n=ch.length;let out='';
+  for(let i=0;i<n;i++){const th=i/n;
+    if(ch[i]===' '){out+=' ';continue;}
+    if(pr*1.35-.35>th)out+=ch[i];else if(pr*1.35>th)out+=GLY[(Math.random()*GLY.length)|0];else out+=' ';}
+  return out;}
 function drawBanner(c,t){
   const fin=(t==null||t>=ANIM.dur);if(fin)t=99;
-  const p=(a,b)=>ease(clamp01((t-a)/(b-a)));
+  const lin=(a,b)=>clamp01((t-a)/(b-a)),p=(a,b)=>ease(lin(a,b));
   const A=S.accent,R=RANKS[S.rank],O=ORGS[S.org],deep='#080a0f';
-  /* 배경: 천천히 밝아지며 살짝 줌아웃 */
-  const bgIn=p(0,1.3),z=1.06-.06*ease(clamp01(t/ANIM.dur));
+  const soft=mix(A,[255,255,255],.55);
+
+  /* ── 배경 ── */
+  const bgIn=p(0,.45),z=fin?1:1.05-.05*ease(clamp01(t/1.2));
   c.save();c.beginPath();c.rect(0,0,W,H);c.clip();
   c.fillStyle='#0b0d12';c.fillRect(0,0,W,H);
-  c.globalAlpha=bgIn;
-  c.translate(W/2,H/2);c.scale(fin?1:z,fin?1:z);c.translate(-W/2,-H/2);
+  c.save();c.globalAlpha=bgIn;c.translate(W/2,H/2);c.scale(z,z);c.translate(-W/2,-H/2);
   let ok=false;
   if(S.img&&S.img.naturalWidth>0){try{const d=dsize();c.drawImage(S.img,S.px,S.py,d.w,d.h);ok=true;}catch(e){ok=false;}}
   if(!ok){
@@ -460,84 +468,103 @@ function drawBanner(c,t){
     for(let x=140;x<W;x+=140){c.beginPath();c.moveTo(x+.5,0);c.lineTo(x+.5,H);c.stroke();}
     if(fin&&ZON)T(c,'CLICK TO ADD IMAGE',W/2,H*.42,{size:14,weight:500,color:'rgba(255,255,255,.3)',sp:5,align:'center',font:KO});
   }
-  if(ok&&S.tint>0){c.save();c.globalAlpha=bgIn*S.tint/100;c.globalCompositeOperation='multiply';c.fillStyle=mix(A,[255,255,255],.46);c.fillRect(0,0,W,H);c.restore();}
-  c.restore();c.save();c.beginPath();c.rect(0,0,W,H);c.clip();
+  if(ok&&S.tint>0){c.globalAlpha=bgIn*S.tint/100;c.globalCompositeOperation='multiply';c.fillStyle=mix(A,[255,255,255],.46);c.fillRect(0,0,W,H);}
+  c.restore();
   const dim=S.dim/100;
   let g=c.createLinearGradient(0,0,W*.62,0);g.addColorStop(0,rgba(deep,.10+.86*dim));g.addColorStop(1,rgba(deep,0));c.fillStyle=g;c.fillRect(0,0,W,H);
   g=c.createLinearGradient(0,H*.42,0,H);g.addColorStop(0,rgba(deep,0));g.addColorStop(1,rgba(deep,.18+.74*dim));c.fillStyle=g;c.fillRect(0,0,W,H);
   g=c.createLinearGradient(0,0,0,170);g.addColorStop(0,rgba(deep,.12+.45*dim));g.addColorStop(1,rgba(deep,0));c.fillStyle=g;c.fillRect(0,0,W,170);
+  /* 스캔 빔: 위에서 아래로 한 번 훑음 */
+  const sb=lin(.05,.55);
+  if(!fin&&sb>0&&sb<1){const y=sb*H;const sg=c.createLinearGradient(0,y-90,0,y+6);
+    sg.addColorStop(0,rgba(toRGBhex(soft),0));sg.addColorStop(1,rgba(toRGBhex(soft),.22));c.fillStyle=sg;c.fillRect(0,y-90,W,96);
+    c.fillStyle='rgba(255,255,255,.75)';c.fillRect(0,y,W,1.5);}
   c.restore();
 
-  const soft=mix(A,[255,255,255],.55);
-  /* 모서리 재단 표시 */
-  const pc=p(.1,.9);
-  c.save();c.globalAlpha=pc;c.strokeStyle='rgba(255,255,255,.32)';c.lineWidth=1.5;
-  [[26,26,1,1],[W-26,26,-1,1]].forEach(([x,y,dx,dy])=>{c.beginPath();c.moveTo(x,y+dy*20);c.lineTo(x,y);c.lineTo(x+dx*20,y);c.stroke();});
-  c.restore();
+  /* ── 모서리 재단 표시: 바깥에서 안으로 스냅 ── */
+  const pc=p(.15,.5),ln=20*pc,o=(1-pc)*18;
+  c.strokeStyle='rgba(255,255,255,.35)';c.lineWidth=1.5;
+  if(pc>0)[[26-o,26-o,1,1],[W-26+o,26-o,-1,1]].forEach(([x,y,dx,dy])=>{c.beginPath();c.moveTo(x,y+dy*ln);c.lineTo(x,y);c.lineTo(x+dx*ln,y);c.stroke();});
 
-  /* 워드마크 */
-  const pw=p(.3,1.1);
-  c.save();c.globalAlpha=pw;c.translate(0,(1-pw)*10);
-  T(c,O.en,48,78,{size:28,weight:600,color:'#fff',sp:9,max:560,font:KO});
-  T(c,O.sub,50,104,{size:13,weight:500,color:soft,sp:4.6,font:KO,max:560});
-  c.restore();
-  c.fillStyle=A;c.fillRect(48,118,56*p(.6,1.3),3);
+  /* ── 워드마크: 해독 ── */
+  const pw=lin(.2,.7);
+  if(pw>0){T(c,scr(O.en,pw),48,78,{size:28,weight:600,color:'#fff',sp:9,max:560,font:KO});
+    c.save();c.globalAlpha=p(.45,.8);T(c,O.sub,50,104,{size:13,weight:500,color:soft,sp:4.6,font:KO,max:560});c.restore();}
+  c.fillStyle=A;c.fillRect(48,118,56*p(.35,.65),3);
   if(fin)zone('org',44,46,420,62);
 
-  /* 우상단 등급 칩 */
-  const pk=p(.5,1.2);
-  c.save();c.globalAlpha=pk;c.translate(0,(1-pk)*10);
-  c.font='600 15px '+KO;const cw=mt(c,R.code,3)+36;
-  c.strokeStyle=soft;c.lineWidth=1.5;rr(c,W-48-cw,50,cw,38,6);c.stroke();
-  T(c,R.code,W-48-cw/2,75,{size:15,weight:600,color:'#fff',sp:3,align:'center',font:KO});
-  T(c,'OPERATOR FILE',W-48,112,{size:12,weight:500,color:'rgba(255,255,255,.5)',sp:3.6,align:'right',font:KO});
-  c.restore();
-  if(fin)zone('rank',W-48-cw,50,cw,38);
+  /* ── 등급 칩: 테두리가 그려진 뒤 코드 해독 ── */
+  c.font='600 15px '+KO;const cw=mt(c,R.code,3)+36,cx0=W-48-cw;
+  const pk=p(.35,.7);
+  if(pk>0){c.strokeStyle=soft;c.lineWidth=1.5;c.save();c.beginPath();c.rect(cx0-2,48,(cw+4)*pk,42);c.clip();rr(c,cx0,50,cw,38,6);c.stroke();c.restore();
+    T(c,scr(R.code,lin(.45,.85)),cx0+cw/2,75,{size:15,weight:600,color:'#fff',sp:3,align:'center',font:KO});
+    c.save();c.globalAlpha=p(.6,.9);T(c,'OPERATOR FILE',W-48,112,{size:12,weight:500,color:'rgba(255,255,255,.5)',sp:3.6,align:'right',font:KO});c.restore();}
+  if(fin)zone('rank',cx0,50,cw,38);
 
-  /* 상단 라벨 (선택) */
+  /* ── 상단 라벨 ── */
   const ty=176;
   if(S.tagLabel){
-    const pl=p(.8,1.5);
-    c.save();c.globalAlpha=pl;
-    c.font='500 14px '+KO;const tw=Math.min(mt(c,S.tagLabel,3.6),420);
-    c.fillStyle='rgba(255,255,255,.07)';rr(c,48,ty-24,tw+36,36,4);c.fill();
-    c.strokeStyle=rgba(toRGBhex(soft),.6);c.lineWidth=1;rr(c,48.5,ty-23.5,tw+35,35,4);c.stroke();
-    T(c,S.tagLabel,66,ty,{size:14,weight:500,color:soft,sp:3.6,font:KO,max:420});
-    c.restore();
-    if(fin)zone('tagLabel',48,ty-24,tw+36,36);
+    const pl=p(.55,.85);
+    if(pl>0){c.save();c.globalAlpha=pl;
+      c.font='500 14px '+KO;const tw=Math.min(mt(c,S.tagLabel,3.6),420);
+      c.fillStyle='rgba(255,255,255,.07)';rr(c,48,ty-24,(tw+36)*pl,36,4);c.fill();
+      c.strokeStyle=rgba(toRGBhex(soft),.6);c.lineWidth=1;rr(c,48.5,ty-23.5,(tw+35)*pl,35,4);c.stroke();
+      T(c,scr(S.tagLabel,lin(.6,1)),66,ty,{size:14,weight:500,color:soft,sp:3.6,font:KO,max:420});c.restore();}
+    if(fin){c.font='500 14px '+KO;zone('tagLabel',48,ty-24,Math.min(mt(c,S.tagLabel,3.6),420)+36,36);}
   }
 
-  /* 코드네임: 왼쪽에서 오른쪽으로 드러남 */
-  const pn=p(1.0,2.0);
-  c.save();c.beginPath();c.rect(0,560,40+1200*pn,220);c.clip();
-  c.globalAlpha=clamp01(pn*1.6);c.translate(0,(1-pn)*18);
-  c.shadowColor='rgba(0,0,0,.45)';c.shadowBlur=34;c.shadowOffsetY=10;
-  T(c,S.name,38,748,{size:120,weight:400,color:'#fff',sp:6,max:1180,font:KO});c.restore();
+  /* ── 코드네임: 포인트 색 바가 쓸고 지나가며 드러남 + 짧은 RGB 글리치 ── */
+  c.font='400 120px '+KO;let nw=mt(c,S.name,6);const nk=nw>1180?1180/nw:1;nw=Math.min(nw,1180);
+  const nx=38,ny=748,top=652,bh=118;
+  const wipeIn=p(.6,.9),wipeOut=p(.88,1.15);
+  const revealW=(nw+20)*wipeIn;
+  if(wipeIn>0){
+    c.save();c.beginPath();c.rect(nx-6,560,revealW,240);c.clip();
+    const gl=!fin&&t<1.25;
+    if(gl){const j=(Math.random()-.5)*6;
+      c.globalCompositeOperation='lighter';
+      T(c,S.name,nx-4+j,ny,{size:120,weight:400,color:'rgba(0,200,255,.55)',sp:6,max:1180,font:KO});
+      T(c,S.name,nx+4-j,ny,{size:120,weight:400,color:'rgba(255,40,90,.45)',sp:6,max:1180,font:KO});
+      c.globalCompositeOperation='source-over';}
+    c.shadowColor='rgba(0,0,0,.45)';c.shadowBlur=34;c.shadowOffsetY=10;
+    T(c,S.name,nx,ny,{size:120,weight:400,color:'#fff',sp:6,max:1180,font:KO});
+    c.restore();
+    /* 와이프 바 */
+    if(!fin&&wipeOut<1){const bx0=nx-6+(nw+20)*wipeOut,bx1=nx-6+revealW;
+      if(bx1>bx0){c.fillStyle=A;c.fillRect(bx0,top,bx1-bx0,bh);c.fillStyle='rgba(255,255,255,.85)';c.fillRect(bx1-3,top,3,bh);}}
+  }
   if(fin)zone('name',40,640,1180,120);
-  /* 등급 줄 */
-  const pr=p(1.7,2.4);
-  c.save();c.globalAlpha=pr;
-  const rw=T(c,R.en+'  ·  '+R.ko,44+(1-pr)*-12,792,{size:18,weight:500,color:soft,sp:5,max:640,font:KO});
-  c.restore();
+
+  /* ── 등급 줄: 해독 ── */
+  const pr=lin(1.0,1.35);
+  let rw=0;
+  if(pr>0)rw=T(c,scr(R.en+'  ·  '+R.ko,pr),44,792,{size:18,weight:500,color:soft,sp:5,max:640,font:KO});
   if(fin)zone('rank',46,770,Math.max(rw,200),30);
 
-  /* 하단 대각 밴드: 아래에서 올라옴 */
-  const pb=p(1.9,2.6),off=(1-pb)*120;
-  const yL=818+off,yR=786+off;
-  c.beginPath();c.moveTo(0,yL);c.lineTo(W,yR);c.lineTo(W,H);c.lineTo(0,H);c.closePath();c.fillStyle='#fbfbfc';c.fill();
-  c.beginPath();c.moveTo(0,yL);c.lineTo(W,yR);c.lineTo(W,yR+5);c.lineTo(0,yL+5);c.closePath();c.fillStyle=A;c.fill();
-  c.save();c.beginPath();c.moveTo(0,yL);c.lineTo(W,yR);c.lineTo(W,H);c.lineTo(0,H);c.closePath();c.clip();
-  c.globalAlpha=pb;
-  const qw=T(c,O.en+'  ·  '+R.code,W-44,872+off,{size:13,weight:500,color:'#9aa2b1',sp:3.2,align:'right',font:KO});
-  c.fillStyle=A;c.fillRect(44,850+off,4,28);
-  /* 대사: 타자기처럼 한 글자씩 */
-  const q=S.quote||'',chars=[...q],maxW=W-180-qw;
-  c.font='500 26px '+KO;const fw=mt(c,q,0),qs=fw>maxW?26*maxW/fw:26;
-  const n=fin?chars.length:Math.floor(chars.length*clamp01((t-2.5)/Math.max(.8,chars.length*.055)));
-  T(c,chars.slice(0,n).join(''),64,872+off,{size:qs,weight:500,color:'#161c28',font:KO});
-  if(!fin&&n<chars.length&&t>2.4&&Math.floor(t*4)%2===0){c.font='500 '+qs+'px '+KO;const cw2=mt(c,chars.slice(0,n).join(''),0);c.fillStyle=A;c.fillRect(66+cw2,872-qs*.8+off,2,qs*.95);}
-  c.restore();
-  if(fin)zone('quote',80,838,W-180-qw,44);
+  /* ── 하단 대각 밴드: 왼쪽에서 빠르게 밀려 들어옴 ── */
+  const pb=p(1.05,1.4),shift=(1-pb)*-W;
+  const yL=818,yR=786;
+  if(pb>0){
+    c.save();c.translate(shift,0);
+    c.beginPath();c.moveTo(0,yL);c.lineTo(W,yR);c.lineTo(W,H);c.lineTo(0,H);c.closePath();c.fillStyle='#fbfbfc';c.fill();
+    c.beginPath();c.moveTo(0,yL);c.lineTo(W,yR);c.lineTo(W,yR+5);c.lineTo(0,yL+5);c.closePath();c.fillStyle=A;c.fill();
+    c.restore();
+    /* 밴드 도착 순간 포인트 선 플래시 */
+    const fl=!fin?clamp01(1-Math.abs(t-1.42)/.12):0;
+    if(fl>0){c.save();c.globalAlpha=fl*.9;c.beginPath();c.moveTo(0,yL-2);c.lineTo(W,yR-2);c.lineTo(W,yR+8);c.lineTo(0,yL+8);c.closePath();c.fillStyle='#fff';c.fill();c.restore();}
+    c.save();c.translate(shift,0);
+    c.beginPath();c.moveTo(0,yL);c.lineTo(W,yR);c.lineTo(W,H);c.lineTo(0,H);c.closePath();c.clip();
+    const qw=T(c,scr(O.en+'  ·  '+R.code,lin(1.3,1.7)),W-44,872,{size:13,weight:500,color:'#9aa2b1',sp:3.2,align:'right',font:KO});
+    c.fillStyle=A;c.fillRect(44,850,4,28*p(1.3,1.5));
+    /* 대사: 빠른 타이핑 + 블록 커서 */
+    const q=S.quote||'',chars=[...q];c.font='500 26px '+KO;const fw=mt(c,q,0),maxW=W-180-mt(c,'',0)-260,qs=fw>maxW?26*maxW/fw:26;
+    const n=fin?chars.length:Math.floor(chars.length*clamp01((t-1.4)/Math.max(.5,chars.length*.03)));
+    const shown=chars.slice(0,n).join('');
+    T(c,shown,64,872,{size:qs,weight:500,color:'#161c28',font:KO});
+    if(!fin&&t>1.35&&(n<chars.length||Math.floor(t*5)%2===0)){c.font='500 '+qs+'px '+KO;const cw2=mt(c,shown,0);c.fillStyle=A;c.fillRect(67+cw2,872-qs*.82,qs*.5,qs*1.0);}
+    c.restore();
+    if(fin)zone('quote',80,838,W-180-qw,44);
+  }
 }
 function toRGBhex(col){const a=toRGB(col);return '#'+a.map(v=>v.toString(16).padStart(2,'0')).join('');}
 let SQUARE=false;
@@ -686,6 +713,9 @@ function stopPlay(){playing=false;cancelAnimationFrame(raf);$('play').textConten
 $('play').onclick=play;
 
 /* ══════════ GIF 저장 ══════════ */
+const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+function dither(d,w,h){for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=(y*w+x)*4,v=(BAYER[(y&3)*4+(x&3)]/16-.47)*7;
+  d[i]=Math.max(0,Math.min(255,d[i]+v));d[i+1]=Math.max(0,Math.min(255,d[i+1]+v));d[i+2]=Math.max(0,Math.min(255,d[i+2]+v));}}
 const GIFENC_URL='https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js';
 let gifBusy=false;
 async function saveGif(){
@@ -704,8 +734,9 @@ async function saveGif(){
       const t=i===total?null:i/fps;
       SQUARE=true;render(x,k,null,t);SQUARE=false;
       const {data}=x.getImageData(0,0,gw,gh);
-      const pal=quantize(data,256,{format:'rgb444'}),idx=applyPalette(data,pal,'rgb444');
-      enc.writeFrame(idx,gw,gh,{palette:pal,delay:i===total?2400:delay,repeat:0});
+      dither(data,gw,gh);
+      const pal=quantize(data,256,{format:'rgb565'}),idx=applyPalette(data,pal,'rgb565');
+      enc.writeFrame(idx,gw,gh,{palette:pal,delay:i===total?1800:delay,repeat:0});
       setP(i/total*.98);
       if(i%2===0)await new Promise(r=>setTimeout(r,0));
     }
