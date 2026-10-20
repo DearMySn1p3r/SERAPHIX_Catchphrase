@@ -265,6 +265,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .pfoot{position:sticky;bottom:0;border-radius:0 0 22px 22px;background:linear-gradient(180deg,rgba(255,255,255,0),#fff 30%);padding:18px 26px max(18px,env(safe-area-inset-bottom,0px));display:flex;gap:8px;justify-content:space-between;align-items:center}
 .pfoot .note{font-size:11px;color:var(--ink3)}
 /* 캐치프레이즈 전용 */
+.stage::before,.stage::after{display:none}
 .prog-g{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);font-variant-numeric:tabular-nums}
 .pg-bar{flex:1;height:3px;border-radius:3px;background:var(--line);overflow:hidden}
 .pg-bar b{display:block;height:100%;width:0;background:var(--ac);transition:width .1s}
@@ -471,9 +472,10 @@ function drawBanner(c,t){
   if(ok&&S.tint>0){c.globalAlpha=bgIn*S.tint/100;c.globalCompositeOperation='multiply';c.fillStyle=mix(A,[255,255,255],.46);c.fillRect(0,0,W,H);}
   c.restore();
   const dim=S.dim/100;
-  let g=c.createLinearGradient(0,0,W*.62,0);g.addColorStop(0,rgba(deep,.10+.86*dim));g.addColorStop(1,rgba(deep,0));c.fillStyle=g;c.fillRect(0,0,W,H);
-  g=c.createLinearGradient(0,H*.42,0,H);g.addColorStop(0,rgba(deep,0));g.addColorStop(1,rgba(deep,.18+.74*dim));c.fillStyle=g;c.fillRect(0,0,W,H);
-  g=c.createLinearGradient(0,0,0,170);g.addColorStop(0,rgba(deep,.12+.45*dim));g.addColorStop(1,rgba(deep,0));c.fillStyle=g;c.fillRect(0,0,W,170);
+  /* 어둡기: 아래쪽에만 (코드네임 뒤를 충분히 어둡게) */
+  const dk=.3+.65*dim;
+  let g=c.createLinearGradient(0,H*.36,0,H);g.addColorStop(0,rgba(deep,0));g.addColorStop(.45,rgba(deep,dk*.62));g.addColorStop(.8,rgba(deep,dk));g.addColorStop(1,rgba(deep,dk));
+  c.fillStyle=g;c.fillRect(0,H*.36,W,H*.64+1);
   /* 스캔 빔: 위에서 아래로 한 번 훑음 */
   const sb=lin(.05,.55);
   if(!fin&&sb>0&&sb<1){const y=sb*H;const sg=c.createLinearGradient(0,y-90,0,y+6);
@@ -488,8 +490,10 @@ function drawBanner(c,t){
 
   /* ── 워드마크: 해독 ── */
   const pw=lin(.2,.7);
+  c.save();c.shadowColor='rgba(0,0,0,.35)';c.shadowBlur=14;
   if(pw>0){T(c,scr(O.en,pw),48,78,{size:28,weight:600,color:'#fff',sp:9,max:560,font:KO});
     c.save();c.globalAlpha=p(.45,.8);T(c,O.sub,50,104,{size:13,weight:500,color:soft,sp:4.6,font:KO,max:560});c.restore();}
+  c.restore();
   c.fillStyle=A;c.fillRect(48,118,56*p(.35,.65),3);
   if(fin)zone('org',44,46,420,62);
 
@@ -519,7 +523,7 @@ function drawBanner(c,t){
   const wipeIn=p(.6,.9),wipeOut=p(.88,1.15);
   const revealW=(nw+20)*wipeIn;
   if(wipeIn>0){
-    c.save();c.beginPath();c.rect(nx-6,560,revealW,240);c.clip();
+    c.save();c.beginPath();c.rect(wipeIn>=1?0:nx-6,560,wipeIn>=1?W:revealW,240);c.clip();
     const gl=!fin&&t<1.25;
     if(gl){const j=(Math.random()-.5)*6;
       c.globalCompositeOperation='lighter';
