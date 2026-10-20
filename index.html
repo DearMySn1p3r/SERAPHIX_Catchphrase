@@ -117,7 +117,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .stage.dark .seg button[aria-pressed="true"]{background:#f3f4f6;color:#0a0a0b}
 .stage.dark .chipbtn{background:rgba(255,255,255,.06);border-color:#2a2b31;color:#b9bcc4}
 @media (max-width:980px){.stage{position:relative;top:0;height:auto;min-height:0}}
-.st-head,.st-foot{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;
+.st-head,.st-foot{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:14px;gap:12px;flex-wrap:wrap;
   padding:20px 22px 0;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--ink3)}
 .st-foot{padding:0 22px 22px;letter-spacing:.04em;font-family:var(--ko);font-size:11.5px}
 .st-head b{font-weight:500;color:var(--ac)}
@@ -265,6 +265,11 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .pfoot{position:sticky;bottom:0;border-radius:0 0 22px 22px;background:linear-gradient(180deg,rgba(255,255,255,0),#fff 30%);padding:18px 26px max(18px,env(safe-area-inset-bottom,0px));display:flex;gap:8px;justify-content:space-between;align-items:center}
 .pfoot .note{font-size:11px;color:var(--ink3)}
 /* 캐치프레이즈 전용 */
+.prog-g{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.pg-bar{flex:1;height:3px;border-radius:3px;background:var(--line);overflow:hidden}
+.pg-bar b{display:block;height:100%;width:0;background:var(--ac);transition:width .1s}
+.chipbtn{border:1px solid var(--line);background:rgba(255,255,255,.8);border-radius:999px;padding:6px 12px;font:600 11.5px var(--ko);color:var(--ink2);cursor:pointer}
+.chipbtn:hover{border-color:var(--ac);color:var(--ac)}
 .bnr{position:relative;width:min(100%,900px,calc((100vh - 230px) * 1.555))}
 @media (max-width:980px){.bnr{width:100%}}
 .bnr canvas{display:block;width:100%;height:auto;border-radius:10px;touch-action:none;box-shadow:0 1px 2px rgba(11,20,36,.08),0 30px 50px -20px rgba(11,20,36,.4)}
@@ -310,7 +315,7 @@ textarea:focus{outline:none;border-color:var(--ac);background:#fff;box-shadow:0 
 
 <main class="app">
   <section class="stage" id="stage" aria-label="캐치프레이즈 미리보기">
-    <div class="st-head"><span>PREVIEW · 1400 × 900</span></div>
+    <div class="st-head"><span>PREVIEW · 1400 × 900</span><button class="chipbtn" id="play" type="button">▶ 애니메이션 재생</button></div>
     <div class="scene-wrap">
       <div class="bnr" id="bnr"><canvas id="pv" aria-label="캐치프레이즈 미리보기"></canvas></div>
     </div>
@@ -349,7 +354,16 @@ textarea:focus{outline:none;border-color:var(--ac);background:#fff;box-shadow:0 
     </div>
 
     <div class="pane" data-p="3" role="tabpanel" hidden>
-      <div class="saves"><button class="btn ac" id="saveA" type="button">이미지 저장 <em id="emA">PNG</em></button></div>
+      <div class="saves"><button class="btn ac" id="saveA" type="button">이미지 저장 <em id="emA">PNG</em></button>
+        <button class="btn" id="saveG" type="button">GIF 저장 <em id="emG">ANIMATED</em></button></div>
+      <div class="opt">
+        <div class="opt-r"><span class="chk" style="cursor:default">GIF 크기</span>
+          <select id="gsize" aria-label="GIF 크기"><option value="560">560 × 360</option><option value="700" selected>700 × 450</option><option value="1050">1050 × 675</option></select></div>
+        <div class="opt-r"><span class="chk" style="cursor:default">프레임</span>
+          <select id="gfps" aria-label="GIF 프레임"><option value="12">12 fps · 가벼움</option><option value="18" selected>18 fps</option><option value="24">24 fps · 부드러움</option></select></div>
+        <div class="prog-g" id="gprog" hidden><div class="pg-bar"><b id="gbar"></b></div><span id="gtxt">0%</span></div>
+        <div class="spec"><span>5.6초 · 반복 재생</span><span id="gspec"></span></div>
+      </div>
       <div class="opt">
         <div class="opt-r"><span class="chk" style="cursor:default">배율</span>
           <select id="scale" aria-label="배율"><option value="1">1× · 1400 × 900</option><option value="2" selected>2× · 2800 × 1800</option><option value="3">3× · 4200 × 2700</option></select></div>
@@ -424,18 +438,30 @@ function clampP(){if(!S.img)return;const d=dsize();S.px=Math.min(0,Math.max(PH.w
 function centerP(){if(!S.img)return;const d=dsize();S.px=(PH.w-d.w)/2;S.py=(PH.h-d.h)*.38;clampP();}
 
 /* ══════════ 배너 ══════════ */
-function drawBanner(c){
+/* 애니메이션 타임라인 (초) — t가 없으면 최종 정지 화면 */
+const ANIM={dur:5.6};
+const clamp01=v=>v<0?0:v>1?1:v;
+const ease=v=>1-Math.pow(1-v,3);
+function drawBanner(c,t){
+  const fin=(t==null||t>=ANIM.dur);if(fin)t=99;
+  const p=(a,b)=>ease(clamp01((t-a)/(b-a)));
   const A=S.accent,R=RANKS[S.rank],O=ORGS[S.org],deep='#080a0f';
+  /* 배경: 천천히 밝아지며 살짝 줌아웃 */
+  const bgIn=p(0,1.3),z=1.06-.06*ease(clamp01(t/ANIM.dur));
   c.save();c.beginPath();c.rect(0,0,W,H);c.clip();
+  c.fillStyle='#0b0d12';c.fillRect(0,0,W,H);
+  c.globalAlpha=bgIn;
+  c.translate(W/2,H/2);c.scale(fin?1:z,fin?1:z);c.translate(-W/2,-H/2);
   let ok=false;
   if(S.img&&S.img.naturalWidth>0){try{const d=dsize();c.drawImage(S.img,S.px,S.py,d.w,d.h);ok=true;}catch(e){ok=false;}}
   if(!ok){
     const g=c.createLinearGradient(0,0,W,H);g.addColorStop(0,mix(A,[0,0,0],.72));g.addColorStop(1,'#0b0d12');c.fillStyle=g;c.fillRect(0,0,W,H);
     c.strokeStyle='rgba(255,255,255,.05)';c.lineWidth=1;
     for(let x=140;x<W;x+=140){c.beginPath();c.moveTo(x+.5,0);c.lineTo(x+.5,H);c.stroke();}
-    T(c,'CLICK TO ADD IMAGE',W/2,H*.42,{size:14,weight:500,color:'rgba(255,255,255,.3)',sp:5,align:'center',font:KO});
+    if(fin&&ZON)T(c,'CLICK TO ADD IMAGE',W/2,H*.42,{size:14,weight:500,color:'rgba(255,255,255,.3)',sp:5,align:'center',font:KO});
   }
-  if(ok&&S.tint>0){c.save();c.globalAlpha=S.tint/100;c.globalCompositeOperation='multiply';c.fillStyle=mix(A,[255,255,255],.46);c.fillRect(0,0,W,H);c.restore();}
+  if(ok&&S.tint>0){c.save();c.globalAlpha=bgIn*S.tint/100;c.globalCompositeOperation='multiply';c.fillStyle=mix(A,[255,255,255],.46);c.fillRect(0,0,W,H);c.restore();}
+  c.restore();c.save();c.beginPath();c.rect(0,0,W,H);c.clip();
   const dim=S.dim/100;
   let g=c.createLinearGradient(0,0,W*.62,0);g.addColorStop(0,rgba(deep,.10+.86*dim));g.addColorStop(1,rgba(deep,0));c.fillStyle=g;c.fillRect(0,0,W,H);
   g=c.createLinearGradient(0,H*.42,0,H);g.addColorStop(0,rgba(deep,0));g.addColorStop(1,rgba(deep,.18+.74*dim));c.fillStyle=g;c.fillRect(0,0,W,H);
@@ -444,55 +470,81 @@ function drawBanner(c){
 
   const soft=mix(A,[255,255,255],.55);
   /* 모서리 재단 표시 */
-  c.strokeStyle='rgba(255,255,255,.32)';c.lineWidth=1.5;
+  const pc=p(.1,.9);
+  c.save();c.globalAlpha=pc;c.strokeStyle='rgba(255,255,255,.32)';c.lineWidth=1.5;
   [[26,26,1,1],[W-26,26,-1,1]].forEach(([x,y,dx,dy])=>{c.beginPath();c.moveTo(x,y+dy*20);c.lineTo(x,y);c.lineTo(x+dx*20,y);c.stroke();});
+  c.restore();
 
   /* 워드마크 */
-  T(c,O.en,48,78,{size:28,weight:600,color:'#fff',sp:9,max:560,font:KO});zone('org',44,46,420,62);
+  const pw=p(.3,1.1);
+  c.save();c.globalAlpha=pw;c.translate(0,(1-pw)*10);
+  T(c,O.en,48,78,{size:28,weight:600,color:'#fff',sp:9,max:560,font:KO});
   T(c,O.sub,50,104,{size:13,weight:500,color:soft,sp:4.6,font:KO,max:560});
-  c.fillStyle=A;c.fillRect(48,118,56,3);
+  c.restore();
+  c.fillStyle=A;c.fillRect(48,118,56*p(.6,1.3),3);
+  if(fin)zone('org',44,46,420,62);
 
   /* 우상단 등급 칩 */
+  const pk=p(.5,1.2);
+  c.save();c.globalAlpha=pk;c.translate(0,(1-pk)*10);
   c.font='600 15px '+KO;const cw=mt(c,R.code,3)+36;
   c.strokeStyle=soft;c.lineWidth=1.5;rr(c,W-48-cw,50,cw,38,6);c.stroke();
   T(c,R.code,W-48-cw/2,75,{size:15,weight:600,color:'#fff',sp:3,align:'center',font:KO});
   T(c,'OPERATOR FILE',W-48,112,{size:12,weight:500,color:'rgba(255,255,255,.5)',sp:3.6,align:'right',font:KO});
-  zone('rank',W-48-cw,50,cw,38);
+  c.restore();
+  if(fin)zone('rank',W-48-cw,50,cw,38);
 
   /* 상단 라벨 (선택) */
   const ty=176;
   if(S.tagLabel){
+    const pl=p(.8,1.5);
+    c.save();c.globalAlpha=pl;
     c.font='500 14px '+KO;const tw=Math.min(mt(c,S.tagLabel,3.6),420);
     c.fillStyle='rgba(255,255,255,.07)';rr(c,48,ty-24,tw+36,36,4);c.fill();
     c.strokeStyle=rgba(toRGBhex(soft),.6);c.lineWidth=1;rr(c,48.5,ty-23.5,tw+35,35,4);c.stroke();
     T(c,S.tagLabel,66,ty,{size:14,weight:500,color:soft,sp:3.6,font:KO,max:420});
-    zone('tagLabel',48,ty-24,tw+36,36);
+    c.restore();
+    if(fin)zone('tagLabel',48,ty-24,tw+36,36);
   }
 
-  /* 코드네임 */
-  c.save();c.shadowColor='rgba(0,0,0,.45)';c.shadowBlur=34;c.shadowOffsetY=10;
+  /* 코드네임: 왼쪽에서 오른쪽으로 드러남 */
+  const pn=p(1.0,2.0);
+  c.save();c.beginPath();c.rect(0,560,40+1200*pn,220);c.clip();
+  c.globalAlpha=clamp01(pn*1.6);c.translate(0,(1-pn)*18);
+  c.shadowColor='rgba(0,0,0,.45)';c.shadowBlur=34;c.shadowOffsetY=10;
   T(c,S.name,38,748,{size:120,weight:400,color:'#fff',sp:6,max:1180,font:KO});c.restore();
-  zone('name',40,640,1180,120);
+  if(fin)zone('name',40,640,1180,120);
   /* 등급 줄 */
-  const rw=T(c,R.en+'  ·  '+R.ko,44,792,{size:18,weight:500,color:soft,sp:5,max:640,font:KO});
-  zone('rank',46,770,Math.max(rw,200),30);
+  const pr=p(1.7,2.4);
+  c.save();c.globalAlpha=pr;
+  const rw=T(c,R.en+'  ·  '+R.ko,44+(1-pr)*-12,792,{size:18,weight:500,color:soft,sp:5,max:640,font:KO});
+  c.restore();
+  if(fin)zone('rank',46,770,Math.max(rw,200),30);
 
-  /* 하단 대각 밴드 */
-  const yL=818,yR=786;
+  /* 하단 대각 밴드: 아래에서 올라옴 */
+  const pb=p(1.9,2.6),off=(1-pb)*120;
+  const yL=818+off,yR=786+off;
   c.beginPath();c.moveTo(0,yL);c.lineTo(W,yR);c.lineTo(W,H);c.lineTo(0,H);c.closePath();c.fillStyle='#fbfbfc';c.fill();
   c.beginPath();c.moveTo(0,yL);c.lineTo(W,yR);c.lineTo(W,yR+5);c.lineTo(0,yL+5);c.closePath();c.fillStyle=A;c.fill();
   c.save();c.beginPath();c.moveTo(0,yL);c.lineTo(W,yR);c.lineTo(W,H);c.lineTo(0,H);c.closePath();c.clip();
-  const qw=T(c,O.en+'  ·  '+R.code,W-44,872,{size:13,weight:500,color:'#9aa2b1',sp:3.2,align:'right',font:KO});
-  c.fillStyle=A;c.fillRect(44,850,4,28);
-  T(c,S.quote||'',64,872,{size:26,weight:500,color:'#161c28',font:KO,max:W-180-qw});
+  c.globalAlpha=pb;
+  const qw=T(c,O.en+'  ·  '+R.code,W-44,872+off,{size:13,weight:500,color:'#9aa2b1',sp:3.2,align:'right',font:KO});
+  c.fillStyle=A;c.fillRect(44,850+off,4,28);
+  /* 대사: 타자기처럼 한 글자씩 */
+  const q=S.quote||'',chars=[...q],maxW=W-180-qw;
+  c.font='500 26px '+KO;const fw=mt(c,q,0),qs=fw>maxW?26*maxW/fw:26;
+  const n=fin?chars.length:Math.floor(chars.length*clamp01((t-2.5)/Math.max(.8,chars.length*.055)));
+  T(c,chars.slice(0,n).join(''),64,872+off,{size:qs,weight:500,color:'#161c28',font:KO});
+  if(!fin&&n<chars.length&&t>2.4&&Math.floor(t*4)%2===0){c.font='500 '+qs+'px '+KO;const cw2=mt(c,chars.slice(0,n).join(''),0);c.fillStyle=A;c.fillRect(66+cw2,872-qs*.8+off,2,qs*.95);}
   c.restore();
-  zone('quote',80,838,W-180-qw,44);
+  if(fin)zone('quote',80,838,W-180-qw,44);
 }
 function toRGBhex(col){const a=toRGB(col);return '#'+a.map(v=>v.toString(16).padStart(2,'0')).join('');}
-function render(c,k,zones){
+let SQUARE=false;
+function render(c,k,zones,t){
   c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,c.canvas.width,c.canvas.height);c.scale(k,k);
-  c.save();rr(c,0,0,W,H,RAD);c.clip();c.fillStyle='#0b0d12';c.fillRect(0,0,W,H);
-  ZON=zones||null;try{drawBanner(c);}catch(e){console.error('render',e);}ZON=null;
+  c.save();if(SQUARE){c.beginPath();c.rect(0,0,W,H);}else rr(c,0,0,W,H,RAD);c.clip();c.fillStyle='#0b0d12';c.fillRect(0,0,W,H);
+  ZON=zones||null;try{drawBanner(c,t);}catch(e){console.error('render',e);}ZON=null;
   c.restore();c.setTransform(1,0,0,1,0,0);
 }
 let PK=.6,ZP=[];
@@ -619,6 +671,56 @@ function save(){sync();const k=+$('scale').value,c=document.createElement('canva
 $('saveA').onclick=save;
 $('scale').onchange=()=>{const k=+$('scale').value;$('emA').textContent=(W*k)+'×'+(H*k);$('sp2').textContent='PNG '+(W*k)+' × '+(H*k)+' PX';};
 $('wipe').onclick=()=>{try{localStorage.removeItem(KEY);}catch(e){}location.reload();};
+
+
+/* ══════════ 애니메이션 재생 ══════════ */
+let playing=false,raf=0;
+function play(){
+  if(playing){stopPlay();return;}
+  playing=true;$('play').textContent='■ 정지';const t0=performance.now();
+  const step=now=>{if(!playing)return;const t=(now-t0)/1000;
+    render(cx,PK,null,t%ANIM.dur);raf=requestAnimationFrame(step);};
+  raf=requestAnimationFrame(step);
+}
+function stopPlay(){playing=false;cancelAnimationFrame(raf);$('play').textContent='▶ 애니메이션 재생';draw();}
+$('play').onclick=play;
+
+/* ══════════ GIF 저장 ══════════ */
+const GIFENC_URL='https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js';
+let gifBusy=false;
+async function saveGif(){
+  if(gifBusy)return;gifBusy=true;if(playing)stopPlay();sync();
+  const btn=$('saveG'),bar=$('gbar'),txt=$('gtxt');$('gprog').hidden=false;btn.disabled=true;
+  const setP=(v,m)=>{bar.style.width=Math.round(v*100)+'%';txt.textContent=m||Math.round(v*100)+'%';};
+  try{
+    setP(0,'준비 중');
+    const {GIFEncoder,quantize,applyPalette}=await import(GIFENC_URL);
+    const gw=+$('gsize').value,k=gw/W,gh=Math.round(H*k),fps=+$('gfps').value;
+    const c=document.createElement('canvas');c.width=gw;c.height=Math.round(H*k);
+    const x=c.getContext('2d',{willReadFrequently:true});x.imageSmoothingQuality='high';
+    const total=Math.round(ANIM.dur*fps),delay=Math.round(1000/fps);
+    const enc=GIFEncoder();
+    for(let i=0;i<=total;i++){
+      const t=i===total?null:i/fps;
+      SQUARE=true;render(x,k,null,t);SQUARE=false;
+      const {data}=x.getImageData(0,0,gw,gh);
+      const pal=quantize(data,256,{format:'rgb444'}),idx=applyPalette(data,pal,'rgb444');
+      enc.writeFrame(idx,gw,gh,{palette:pal,delay:i===total?2400:delay,repeat:0});
+      setP(i/total*.98);
+      if(i%2===0)await new Promise(r=>setTimeout(r,0));
+    }
+    enc.finish();
+    const blob=new Blob([enc.bytes()],{type:'image/gif'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=ORGS[S.org].en+'_'+safe(S.name)+'_'+gw+'x'+gh+'.gif';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),6000);
+    setP(1,'완료 · '+(blob.size/1048576).toFixed(1)+' MB');
+  }catch(e){console.error(e);txt.textContent='GIF 만들기에 실패했어요. 인터넷 연결을 확인해 주세요.';}
+  btn.disabled=false;gifBusy=false;
+}
+$('saveG').onclick=saveGif;
+function gspec(){const gw=+$('gsize').value;$('gspec').textContent=gw+' × '+Math.round(H*gw/W)+' · '+$('gfps').value+' FPS';}
+$('gsize').onchange=gspec;$('gfps').onchange=gspec;gspec();
 
 /* ══════════ 시계 · 시작 ══════════ */
 function clockTxt(){const d=new Date();return 'NST '+[d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');}
